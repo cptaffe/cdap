@@ -94,8 +94,6 @@ public class RemoteConfigurator implements Configurator {
     if (configResponse.getException() == null) {
       result.set(configResponse.getConfigResponse());
     } else {
-      final Exception exception = new Exception();
-      exception.
       return Futures.immediateFailedFuture(configResponse.getException());
     }
 

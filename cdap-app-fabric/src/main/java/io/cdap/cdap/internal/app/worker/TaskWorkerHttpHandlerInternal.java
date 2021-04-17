@@ -52,10 +52,9 @@ public class TaskWorkerHttpHandlerInternal extends AbstractLogHttpHandler {
   private final Consumer<String> stopper;
   private final AtomicInteger inflightRequests = new AtomicInteger(0);
 
-
   public TaskWorkerHttpHandlerInternal(CConfiguration cConf, Configuration hConf, Consumer<String> stopper) {
     super(cConf);
-    runnableTaskLauncher = new RunnableTaskLauncher(cConf);
+    runnableTaskLauncher = new RunnableTaskLauncher(cConf, hConf);
     this.stopper = stopper;
   }
 

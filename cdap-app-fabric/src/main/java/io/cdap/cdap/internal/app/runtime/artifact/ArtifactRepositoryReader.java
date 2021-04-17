@@ -41,6 +41,8 @@ public interface ArtifactRepositoryReader {
    */
   ArtifactDetail getArtifact(Id.Artifact artifactId) throws Exception;
 
+  InputStream getArtifactBytes(Id.Artifact artifactId) throws Exception;
+
   /**
    * Returns an input stream for reading the artifact bytes.
    * If no such artifact exists, or an error occurs during reading, an exception is thrown.

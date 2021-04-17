@@ -28,7 +28,6 @@ import org.apache.twill.filesystem.Location;
 public class ConfiguratorFactory {
 
   private final boolean isRemote;
-
   @Inject
   private DiscoveryServiceClient discoveryServiceClient;
 
