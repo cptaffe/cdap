@@ -14,10 +14,11 @@
  * the License.
  */
 
-package io.cdap.cdap.common.internal.worker;
+package io.cdap.cdap.api.service.worker;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import javax.annotation.Nullable;
 
 /**
  * Represents a context for a {@link RunnableTask}.
@@ -25,10 +26,14 @@ import java.io.IOException;
  */
 public class RunnableTaskContext {
   private final ByteArrayOutputStream outputStream;
+  @Nullable
   private final String param;
+  @Nullable
+  private final ClassLoader artifactClassLoader;
 
-  public RunnableTaskContext(String param) {
+  private RunnableTaskContext(@Nullable String param, @Nullable ClassLoader artifactClassLoader) {
     this.param = param;
+    this.artifactClassLoader = artifactClassLoader;
     this.outputStream = new ByteArrayOutputStream();
   }
 
@@ -40,7 +45,45 @@ public class RunnableTaskContext {
     return outputStream.toByteArray();
   }
 
+  @Nullable
   public String getParam() {
     return param;
+  }
+
+  @Nullable
+  public ClassLoader getArtifactClassLoader() {
+    return artifactClassLoader;
+  }
+
+  public static Builder getBuilder() {
+    return new Builder();
+  }
+
+  /**
+   * Builder for RunnableTaskContext
+   */
+  public static class Builder {
+    @Nullable
+    private String param;
+    @Nullable
+    private ClassLoader artifactClassLoader;
+
+    private Builder() {
+
+    }
+
+    public Builder withParam(@Nullable String param) {
+      this.param = param;
+      return this;
+    }
+
+    public Builder withArtifactClassLoader(@Nullable ClassLoader artifactClassLoader) {
+      this.artifactClassLoader = artifactClassLoader;
+      return this;
+    }
+
+    public RunnableTaskContext build() {
+      return new RunnableTaskContext(param, artifactClassLoader);
+    }
   }
 }
