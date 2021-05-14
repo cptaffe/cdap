@@ -18,6 +18,7 @@ package io.cdap.cdap.gateway.handlers;
 
 import com.google.common.base.Throwables;
 import com.google.common.io.Closeables;
+import com.google.common.net.HttpHeaders;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -46,7 +47,7 @@ import io.cdap.http.BodyProducer;
 import io.cdap.http.HttpResponder;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.codec.http.EmptyHttpHeaders;
+import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
@@ -62,6 +63,7 @@ import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.MediaType;
 
 /**
  * Internal {@link io.cdap.http.HttpHandler} for managing artifacts.
@@ -78,6 +80,8 @@ public class ArtifactHttpHandlerInternal extends AbstractHttpHandler {
 
   private final ArtifactRepository artifactRepository;
   private final NamespaceQueryAdmin namespaceQueryAdmin;
+
+  private final int CHUNK_SIZE = 65536; // 64K
 
   @Inject
   ArtifactHttpHandlerInternal(ArtifactRepository artifactRepository,
@@ -118,8 +122,8 @@ public class ArtifactHttpHandlerInternal extends AbstractHttpHandler {
 
         @Override
         public ByteBuf nextChunk() throws Exception {
-          ByteBuf buffer = Unpooled.buffer(4096);
-          buffer.writeBytes(artifactBytes, 4096);
+          ByteBuf buffer = Unpooled.buffer(CHUNK_SIZE);
+          buffer.writeBytes(artifactBytes, CHUNK_SIZE);
           return buffer;
         }
 
@@ -130,10 +134,16 @@ public class ArtifactHttpHandlerInternal extends AbstractHttpHandler {
 
         @Override
         public void handleError(@Nullable Throwable cause) {
+          LOG.warn(String.format(
+            "Exception when initiating stream download for artifact %s, version %s in namespace %s using scope %s",
+            artifactName, artifactVersion, namespaceId, scope), cause);
           Closeables.closeQuietly(artifactBytes);
         }
-      }, EmptyHttpHeaders.INSTANCE);
+      }, new DefaultHttpHeaders().add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM));
     } catch (Exception e) {
+      LOG.warn(String.format(
+        "Exception when initiating stream download for artifact %s, version %s in namespace %s using scope %s",
+        artifactName, artifactVersion, namespaceId, scope), e);
       Closeables.closeQuietly(artifactBytes);
       throw e;
     }

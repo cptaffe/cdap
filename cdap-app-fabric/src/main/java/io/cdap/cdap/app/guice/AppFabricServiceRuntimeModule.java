@@ -72,6 +72,7 @@ import io.cdap.cdap.gateway.handlers.WorkflowHttpHandler;
 import io.cdap.cdap.gateway.handlers.WorkflowStatsSLAHttpHandler;
 import io.cdap.cdap.gateway.handlers.meta.RemotePrivilegesHandler;
 import io.cdap.cdap.internal.app.deploy.ConfiguratorFactory;
+import io.cdap.cdap.internal.app.deploy.ConfiguratorFactoryProvider;
 import io.cdap.cdap.internal.app.deploy.LocalApplicationManager;
 import io.cdap.cdap.internal.app.deploy.pipeline.AppDeploymentInfo;
 import io.cdap.cdap.internal.app.deploy.pipeline.ApplicationWithPrograms;
@@ -145,7 +146,7 @@ public final class AppFabricServiceRuntimeModule extends RuntimeModule {
 
   @Override
   public Module getInMemoryModules() {
-    return Modules.combine(new AppFabricServiceModule(false),
+    return Modules.combine(new AppFabricServiceModule(),
                            new CapabilityModule(),
                            new NamespaceAdminModule().getInMemoryModules(),
                            new ConfigStoreModule(),
@@ -185,7 +186,7 @@ public final class AppFabricServiceRuntimeModule extends RuntimeModule {
   @Override
   public Module getStandaloneModules() {
 
-    return Modules.combine(new AppFabricServiceModule(false),
+    return Modules.combine(new AppFabricServiceModule(),
                            new CapabilityModule(),
                            new NamespaceAdminModule().getStandaloneModules(),
                            new ConfigStoreModule(),
@@ -238,7 +239,7 @@ public final class AppFabricServiceRuntimeModule extends RuntimeModule {
   @Override
   public Module getDistributedModules() {
 
-    return Modules.combine(new AppFabricServiceModule(true, ImpersonationHandler.class),
+    return Modules.combine(new AppFabricServiceModule(ImpersonationHandler.class),
                            new CapabilityModule(),
                            new NamespaceAdminModule().getDistributedModules(),
                            new ConfigStoreModule(),
@@ -278,11 +279,9 @@ public final class AppFabricServiceRuntimeModule extends RuntimeModule {
    */
   private static final class AppFabricServiceModule extends AbstractModule {
 
-    private final boolean isRemote;
     private final List<Class<? extends HttpHandler>> handlerClasses;
 
-    private AppFabricServiceModule(boolean isRemote, Class<? extends HttpHandler>... handlerClasses) {
-      this.isRemote = isRemote;
+    private AppFabricServiceModule(Class<? extends HttpHandler>... handlerClasses) {
       this.handlerClasses = ImmutableList.copyOf(handlerClasses);
     }
 
@@ -301,7 +300,7 @@ public final class AppFabricServiceRuntimeModule extends RuntimeModule {
           })
       );
 
-      bind(ConfiguratorFactory.class).toInstance(new ConfiguratorFactory(isRemote));
+      bind(ConfiguratorFactory.class).toProvider(ConfiguratorFactoryProvider.class);
 
       bind(Store.class).to(DefaultStore.class);
       bind(SecretStore.class).to(DefaultSecretStore.class).in(Scopes.SINGLETON);
