@@ -20,6 +20,7 @@ package io.cdap.cdap.master.environment;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import io.cdap.cdap.common.conf.CConfiguration;
 import io.cdap.cdap.common.conf.Constants;
 import io.cdap.cdap.common.discovery.ResolvingDiscoverable;
 import io.cdap.cdap.common.discovery.URIScheme;
@@ -34,15 +35,10 @@ import org.apache.twill.common.Cancellable;
 import org.apache.twill.discovery.DiscoveryService;
 import org.apache.twill.discovery.DiscoveryServiceClient;
 import org.apache.twill.discovery.InMemoryDiscoveryService;
-import org.apache.twill.filesystem.LocalLocationFactory;
-import org.apache.twill.filesystem.LocationFactory;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -58,8 +54,6 @@ import javax.ws.rs.PathParam;
  * Test for {@link DefaultMasterEnvironmentRunnableContextTest}.
  */
 public class DefaultMasterEnvironmentRunnableContextTest {
-  @ClassRule
-  private static final Logger LOG = LoggerFactory.getLogger(DefaultMasterEnvironmentRunnableContextTest.class);
   private static DefaultMasterEnvironmentRunnableContext context;
   private static DiscoveryService discoveryService;
   private static Cancellable cancelDiscovery;
@@ -68,13 +62,12 @@ public class DefaultMasterEnvironmentRunnableContextTest {
   @BeforeClass
   public static void setup() throws Exception {
     discoveryService = new InMemoryDiscoveryService();
-
     Injector injector = Guice.createInjector(
       new LocalLocationModule(),
       new AbstractModule() {
         @Override
         protected void configure() {
-          bind(LocationFactory.class).to(LocalLocationFactory.class);
+          bind(CConfiguration.class).toInstance(CConfiguration.create());
           bind(DiscoveryServiceClient.class).toInstance((DiscoveryServiceClient) discoveryService);
         }
       });
@@ -90,8 +83,12 @@ public class DefaultMasterEnvironmentRunnableContextTest {
 
   @AfterClass
   public static void stop() throws Exception {
-    cancelDiscovery.cancel();
-    httpService.stop();
+    if (cancelDiscovery != null) {
+      cancelDiscovery.cancel();
+    }
+    if (httpService != null) {
+      httpService.stop();
+    }
   }
 
   @Test
