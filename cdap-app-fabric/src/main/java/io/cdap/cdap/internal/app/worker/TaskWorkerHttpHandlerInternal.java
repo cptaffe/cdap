@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.QueryParam;
 
 /**
  * Internal {@link HttpHandler} for Task worker.
@@ -59,6 +60,12 @@ public class TaskWorkerHttpHandlerInternal extends AbstractLogHttpHandler {
     this.stopper = stopper;
   }
 
+  /**
+   * Run a task specified by {@link RunnableTaskRequest} in the request body.
+   *
+   * @param request http request whose body contains {@link RunnableTaskRequest} in json format.
+   * @param responder {@link HttpResponder}
+   */
   @POST
   @Path("/run")
   public void run(FullHttpRequest request, HttpResponder responder) {
@@ -84,6 +91,37 @@ public class TaskWorkerHttpHandlerInternal extends AbstractLogHttpHandler {
       if (className != null) {
         stopper.accept(className);
       }
+    }
+  }
+
+  /**
+   * Run a task specified by query parameters: {@code className} and {@code param}
+   *
+   * @param request http request whose body contains {@link RunnableTaskRequest} in json format.
+   * @param responder {@link HttpResponder}
+   */
+  @POST
+  @Path("/run/task")
+  public void run(FullHttpRequest request, HttpResponder responder,
+                  @QueryParam("className") String className,
+                  @QueryParam("param") String param) {
+    if (inflightRequests.incrementAndGet() > 1) {
+      responder.sendStatus(HttpResponseStatus.TOO_MANY_REQUESTS);
+      return;
+    }
+    try {
+      RunnableTaskRequest runnableTaskRequest = new RunnableTaskRequest(className,param);
+      className = runnableTaskRequest.getClassName();
+      byte[] response = runnableTaskLauncher.launchRunnableTask(runnableTaskRequest);
+      responder.sendByteArray(HttpResponseStatus.OK, response, EmptyHttpHeaders.INSTANCE);
+    } catch (ClassNotFoundException | ClassCastException ex) {
+      responder.sendString(HttpResponseStatus.BAD_REQUEST, exceptionToJson(ex), EmptyHttpHeaders.INSTANCE);
+    } catch (Exception ex) {
+      LOG.error(String.format("Failed to run task %s",
+                              request.content().toString(StandardCharsets.UTF_8), ex));
+      responder.sendString(HttpResponseStatus.INTERNAL_SERVER_ERROR, exceptionToJson(ex), EmptyHttpHeaders.INSTANCE);
+    } finally {
+      stopper.accept(className);
     }
   }
 

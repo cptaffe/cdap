@@ -30,6 +30,7 @@ import io.cdap.common.http.HttpRequest;
 import io.cdap.common.http.HttpRequests;
 import io.cdap.common.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import org.apache.avro.LogicalTypes;
 import org.apache.twill.common.Threads;
 import org.apache.twill.discovery.InMemoryDiscoveryService;
 import org.apache.twill.internal.ServiceListenerAdapter;
@@ -42,6 +43,7 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -181,6 +183,27 @@ public class TaskWorkerServiceTest {
     waitForTaskWorkerToFinish(taskWorkerService);
     Assert.assertEquals(1, okResponse);
     Assert.assertEquals(concurrentRequests, okResponse + conflictResponse);
+    Assert.assertTrue(taskWorkerService.state() == Service.State.TERMINATED);
+  }
+
+
+  @Test
+  public void testRunTaskWithQueryParameters() throws IOException {
+    TaskWorkerService taskWorkerService = setupTaskWorkerService(10001);
+    InetSocketAddress addr = taskWorkerService.getBindAddress();
+    URI uri = URI.create(String.format("http://%s:%s", addr.getHostName(), addr.getPort()));
+
+
+    String className = TestRunnableClass.class.getName();
+    String param = String.valueOf(Duration.ofMillis(1).toMillis());
+    String path = String.format("%s/worker/run/task?className=%s&param=%s",
+                            Constants.Gateway.INTERNAL_API_VERSION_3,
+                            className, param);
+    HttpResponse response = HttpRequests.execute(HttpRequest.post(uri.resolve(path).toURL()).build(),
+                                                 new DefaultHttpRequestConfig(false));
+    waitForTaskWorkerToFinish(taskWorkerService);
+    Assert.assertEquals(HttpURLConnection.HTTP_OK, response.getResponseCode());
+    Assert.assertEquals(param, response.getResponseBodyAsString());
     Assert.assertTrue(taskWorkerService.state() == Service.State.TERMINATED);
   }
 
