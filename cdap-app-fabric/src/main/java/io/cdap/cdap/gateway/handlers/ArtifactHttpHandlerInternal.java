@@ -81,7 +81,7 @@ public class ArtifactHttpHandlerInternal extends AbstractHttpHandler {
   private final ArtifactRepository artifactRepository;
   private final NamespaceQueryAdmin namespaceQueryAdmin;
 
-  private final int CHUNK_SIZE = 65536; // 64K
+  private final int CHUNK_SIZE = 64 * 1024;
 
   @Inject
   ArtifactHttpHandlerInternal(ArtifactRepository artifactRepository,
@@ -115,7 +115,7 @@ public class ArtifactHttpHandlerInternal extends AbstractHttpHandler {
 
     NamespaceId namespace = validateAndGetScopedNamespace(Ids.namespace(namespaceId), scope);
     ArtifactId artifactId = new ArtifactId(namespace.getNamespace(), artifactName, artifactVersion);
-    InputStream artifactBytes = artifactRepository.newInputStream(Id.Artifact.fromEntityId(artifactId));
+    InputStream artifactStream = artifactRepository.newInputStream(Id.Artifact.fromEntityId(artifactId));
 
     try {
       responder.sendContent(HttpResponseStatus.OK, new BodyProducer() {
@@ -123,13 +123,13 @@ public class ArtifactHttpHandlerInternal extends AbstractHttpHandler {
         @Override
         public ByteBuf nextChunk() throws Exception {
           ByteBuf buffer = Unpooled.buffer(CHUNK_SIZE);
-          buffer.writeBytes(artifactBytes, CHUNK_SIZE);
+          buffer.writeBytes(artifactStream, CHUNK_SIZE);
           return buffer;
         }
 
         @Override
         public void finished() throws Exception {
-          Closeables.closeQuietly(artifactBytes);
+          Closeables.closeQuietly(artifactStream);
         }
 
         @Override
@@ -137,14 +137,14 @@ public class ArtifactHttpHandlerInternal extends AbstractHttpHandler {
           LOG.warn(String.format(
             "Exception when initiating stream download for artifact %s, version %s in namespace %s using scope %s",
             artifactName, artifactVersion, namespaceId, scope), cause);
-          Closeables.closeQuietly(artifactBytes);
+          Closeables.closeQuietly(artifactStream);
         }
       }, new DefaultHttpHeaders().add(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_OCTET_STREAM));
     } catch (Exception e) {
       LOG.warn(String.format(
         "Exception when initiating stream download for artifact %s, version %s in namespace %s using scope %s",
         artifactName, artifactVersion, namespaceId, scope), e);
-      Closeables.closeQuietly(artifactBytes);
+      Closeables.closeQuietly(artifactStream);
       throw e;
     }
   }

@@ -28,6 +28,8 @@ import io.cdap.cdap.api.artifact.ArtifactVersion;
 import io.cdap.cdap.api.plugin.PluginClass;
 import io.cdap.cdap.api.plugin.PluginSelector;
 import io.cdap.cdap.common.ArtifactNotFoundException;
+import io.cdap.cdap.common.BadRequestException;
+import io.cdap.cdap.common.ServiceUnavailableException;
 import io.cdap.cdap.common.conf.CConfiguration;
 import io.cdap.cdap.common.conf.Constants;
 import io.cdap.cdap.common.http.DefaultHttpRequestConfig;
@@ -52,11 +54,13 @@ import org.apache.twill.filesystem.LocationFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.OutputStream;
+import java.io.InputStream;
 import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -215,17 +219,17 @@ public class RemotePluginFinder implements PluginFinder, ArtifactFinder {
     String path = response.getResponseBodyAsString();
     Location location = Locations.getLocationFromAbsolutePath(locationFactory, path);
 
-    // If the artifact doesnt exist locally then fetch it from app fabric and save it locally
+    // If the artifact doesn't exist locally then fetch it from app fabric and save it locally
     if (!location.exists()) {
       LOG.debug(String.format("Artifact '%s' is not present locally at %s, attempting to fetch it from app-fabric.",
                               artifactId.getArtifact(), path));
-      getAndStoreArtifact(artifactId, location);
+
+      Retries.runWithRetries(() -> getAndStoreArtifact(artifactId, location), retryStrategy);
     }
     return location;
   }
 
   private void getAndStoreArtifact(ArtifactId artifactId, Location location) throws IOException {
-    HttpResponse httpResponse;
     String namespaceId = artifactId.getNamespace();
     ArtifactScope scope = ArtifactScope.USER;
     // Cant use 'system' as the namespace in the request because that generates an error, the namespace doesnt matter
@@ -241,15 +245,45 @@ public class RemotePluginFinder implements PluginFinder, ArtifactFinder {
                                scope);
 
     LOG.debug("Fetching artifact from " + url);
-    HttpRequest.Builder requestBuilder = remoteClientInternal.requestBuilder(HttpMethod.GET, url);
-    httpResponse = remoteClientInternal.execute(requestBuilder.build());
-    if (httpResponse.getResponseCode() != HttpURLConnection.HTTP_OK) {
-      throw new IOException(String.format("Failed to fetch artifact %s version %s from app-fabric",
-                                          artifactId.getArtifact(), artifactId.getVersion()));
+    HttpURLConnection connection = remoteClientInternal.openConnection(url);
+    try {
+      try (InputStream is = connection.getInputStream()) {
+        Files.copy(is, Paths.get(location.toURI()));
+        throwIfError(artifactId, connection);
+        LOG.debug("Stored artifact into " + location.toURI().toString());
+      } catch (BadRequestException e) {
+        // Just treat bad request as IOException since it won't be retriable
+        throw new IOException(e);
+      }
+    } finally {
+      connection.disconnect();
     }
-    OutputStream outputStream = location.getOutputStream();
-    ByteStreams.copy(new ByteArrayInputStream(httpResponse.getResponseBody()), outputStream);
-    outputStream.close();
-    LOG.debug("Stored artifact into " + location.toURI().toString());
+  }
+
+  /**
+   * Validates the response from the given {@link HttpURLConnection} to be 200, or throws exception if it is not 200.
+   */
+  private void throwIfError(ArtifactId artifactId,
+                            HttpURLConnection urlConn) throws IOException, BadRequestException {
+    int responseCode = urlConn.getResponseCode();
+    if (responseCode == HttpURLConnection.HTTP_OK) {
+      return;
+    }
+    try (InputStream errorStream = urlConn.getErrorStream()) {
+      String errorMsg = "unknown error";
+      if (errorStream != null) {
+        errorMsg = new String(ByteStreams.toByteArray(errorStream), StandardCharsets.UTF_8);
+      }
+      switch (responseCode) {
+        case HttpURLConnection.HTTP_BAD_REQUEST:
+          throw new BadRequestException(errorMsg);
+        case HttpURLConnection.HTTP_UNAVAILABLE:
+          throw new ServiceUnavailableException(Constants.Service.APP_FABRIC_HTTP, errorMsg);
+      }
+
+      throw new IOException(
+        String.format("Failed to fetch artifact %s version %s from %s. Response code: %d. Error: %s",
+                      artifactId.getArtifact(), artifactId.getVersion(), urlConn.getURL(), responseCode, errorMsg));
+    }
   }
 }

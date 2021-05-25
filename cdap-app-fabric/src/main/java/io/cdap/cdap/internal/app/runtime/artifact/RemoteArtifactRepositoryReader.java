@@ -16,6 +16,7 @@
 
 package io.cdap.cdap.internal.app.runtime.artifact;
 
+import com.google.common.io.ByteStreams;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -24,6 +25,7 @@ import io.cdap.cdap.api.artifact.ArtifactRange;
 import io.cdap.cdap.api.artifact.ArtifactScope;
 import io.cdap.cdap.api.data.schema.Schema;
 import io.cdap.cdap.common.NotFoundException;
+import io.cdap.cdap.common.ServiceUnavailableException;
 import io.cdap.cdap.common.conf.Constants;
 import io.cdap.cdap.common.http.DefaultHttpRequestConfig;
 import io.cdap.cdap.common.id.Id;
@@ -40,12 +42,13 @@ import io.cdap.common.http.HttpResponse;
 import org.apache.twill.discovery.DiscoveryServiceClient;
 import org.apache.twill.filesystem.Location;
 import org.apache.twill.filesystem.LocationFactory;
-import sun.net.www.protocol.http.HttpURLConnection;
 
-import java.io.ByteArrayInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Type;
+import java.net.HttpURLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -100,7 +103,6 @@ public class RemoteArtifactRepositoryReader implements ArtifactRepositoryReader 
 
   @Override
   public InputStream newInputStream(Id.Artifact artifactId) throws IOException, NotFoundException {
-    HttpResponse httpResponse;
     String namespaceId = artifactId.getNamespace().getId();
     ArtifactScope scope = ArtifactScope.USER;
     // Cant use 'system' as the namespace in the request because that generates an error, the namespace doesnt matter
@@ -114,10 +116,17 @@ public class RemoteArtifactRepositoryReader implements ArtifactRepositoryReader 
                                artifactId.getName(),
                                artifactId.getVersion(),
                                scope);
-    HttpRequest.Builder requestBuilder = remoteClient.requestBuilder(HttpMethod.GET, url);
-    httpResponse = execute(requestBuilder.build());
 
-    return new ByteArrayInputStream(httpResponse.getResponseBody());
+    HttpURLConnection urlConn = remoteClient.openConnection(HttpMethod.GET, url);
+    throwIfError(artifactId, urlConn);
+    // Use FilterInputStream and override close to ensure the connection is closed once the input stream is closed
+    return new FilterInputStream(urlConn.getInputStream()){
+      @Override
+      public void close() throws IOException {
+        super.close();
+        urlConn.disconnect();
+      }
+    };
   }
 
 
@@ -153,5 +162,32 @@ public class RemoteArtifactRepositoryReader implements ArtifactRepositoryReader 
       throw new IOException(httpResponse.getResponseBodyAsString());
     }
     return httpResponse;
+  }
+
+  /**
+   * Validates the response from the given {@link HttpURLConnection} to be 200, or throws exception if it is not 200.
+   */
+  private void throwIfError(Id.Artifact artifactId,
+                            HttpURLConnection urlConn) throws IOException, NotFoundException {
+    int responseCode = urlConn.getResponseCode();
+    if (responseCode == HttpURLConnection.HTTP_OK) {
+      return;
+    }
+    try (InputStream errorStream = urlConn.getErrorStream()) {
+      String errorMsg = "unknown error";
+      if (errorStream != null) {
+        errorMsg = new String(ByteStreams.toByteArray(errorStream), StandardCharsets.UTF_8);
+      }
+      switch (responseCode) {
+        case HttpURLConnection.HTTP_UNAVAILABLE:
+          throw new ServiceUnavailableException(Constants.Service.APP_FABRIC_HTTP, errorMsg);
+        case HttpURLConnection.HTTP_NOT_FOUND:
+          throw new NotFoundException(artifactId);
+      }
+
+      throw new IOException(
+        String.format("Failed to fetch artifact %s version %s from %s. Response code: %d. Error: %s",
+                      artifactId.getName(), artifactId.getVersion(), urlConn.getURL(), responseCode, errorMsg));
+    }
   }
 }

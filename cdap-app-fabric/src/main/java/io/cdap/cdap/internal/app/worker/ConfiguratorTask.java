@@ -14,7 +14,6 @@
 
 package io.cdap.cdap.internal.app.worker;
 
-import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -26,6 +25,7 @@ import io.cdap.cdap.common.conf.CConfiguration;
 import io.cdap.cdap.common.internal.worker.RunnableTask;
 import io.cdap.cdap.common.internal.worker.RunnableTaskContext;
 import io.cdap.cdap.common.io.Locations;
+import io.cdap.cdap.config.CConfigurationCodec;
 import io.cdap.cdap.internal.app.ApplicationSpecificationAdapter;
 import io.cdap.cdap.internal.app.deploy.InMemoryConfigurator;
 import io.cdap.cdap.internal.app.deploy.pipeline.ConfiguratorConfig;
@@ -39,17 +39,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 
 /**
  * ConfiguratorTask is a RunnableTask for performing the configurator config.
  */
 public class ConfiguratorTask implements RunnableTask {
-  private static final Gson GSON = ApplicationSpecificationAdapter.addTypeAdapters(new GsonBuilder()).create();
+  private static final Gson GSON = ApplicationSpecificationAdapter.addTypeAdapters(new GsonBuilder())
+    .registerTypeAdapter(CConfiguration.class, new CConfigurationCodec()).create();
   private static final Logger LOG = LoggerFactory.getLogger(ConfiguratorTask.class);
-
 
   private final CConfiguration cConf;
 
@@ -88,24 +89,28 @@ public class ConfiguratorTask implements RunnableTask {
 
       // Getting the pipeline app from appfabric
       LOG.info(String.format("Fetching artifact '%s' from app-fabric to create artifact class loader.",
-                             config.getArtifactId().getName()));
+                             config.getArtifactId().getArtifact()));
       Location artifactLocation = Locations.getLocationFromAbsolutePath(
         locationFactory, config.getArtifactLocationURI().getPath());
-      OutputStream outputStream = artifactLocation.getOutputStream();
-      InputStream artifactBytes = artifactRepository.newInputStream(config.getArtifactId());
-      ByteStreams.copy(artifactBytes, outputStream);
-      outputStream.close();
-      artifactBytes.close();
-      LOG.info(String.format("Successfully fetched artifact '%s'.", config.getArtifactId().getName()));
 
+
+      try (InputStream is = artifactRepository.newInputStream(Id.Artifact.fromEntityId(config.getArtifactId()))) {
+        Files.copy(is, Paths.get(artifactLocation.toURI()));
+      }
+
+      LOG.info(String.format("Successfully fetched artifact '%s'.", config.getArtifactId().getArtifact()));
 
       EntityImpersonator classLoaderImpersonator =
-        new EntityImpersonator(config.getArtifactId().toEntityId(), impersonator);
+        new EntityImpersonator(config.getArtifactId(), impersonator);
       ClassLoader artifactClassLoader = artifactRepository.createArtifactClassLoader(artifactLocation,
                                                                                      classLoaderImpersonator);
 
+      Id.Namespace namespaceId = Id.Namespace.from(config.getAppNamespace().getEntityName());
+      Id.Artifact artifactId = Id.Artifact
+        .from(Id.Namespace.from(config.getArtifactId().getNamespace()), config.getArtifactId().toApiArtifactId());
+
       InMemoryConfigurator configurator = new InMemoryConfigurator(
-        config.getcConf(), config.getAppNamespace(), config.getArtifactId(),
+        config.getcConf(), namespaceId, artifactId,
         config.getAppClassName(), pluginFinder,
         artifactClassLoader,
         config.getApplicationName(), config.getApplicationVersion(),
@@ -124,6 +129,5 @@ public class ConfiguratorTask implements RunnableTask {
       String json = GSON.toJson(result);
       context.writeResult(json.getBytes(StandardCharsets.UTF_8));
     }
-
   }
 }

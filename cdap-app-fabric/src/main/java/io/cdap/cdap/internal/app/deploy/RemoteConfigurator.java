@@ -16,20 +16,22 @@ package io.cdap.cdap.internal.app.deploy;
 
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.google.common.util.concurrent.SettableFuture;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import io.cdap.cdap.app.deploy.ConfigResponse;
 import io.cdap.cdap.app.deploy.Configurator;
 import io.cdap.cdap.common.conf.CConfiguration;
 import io.cdap.cdap.common.conf.Constants;
 import io.cdap.cdap.common.http.DefaultHttpRequestConfig;
-import io.cdap.cdap.common.id.Id;
 import io.cdap.cdap.common.internal.remote.RemoteClient;
+import io.cdap.cdap.config.CConfigurationCodec;
 import io.cdap.cdap.internal.app.deploy.pipeline.ConfiguratorConfig;
 import io.cdap.cdap.internal.app.runtime.artifact.PluginFinder;
 import io.cdap.cdap.internal.app.worker.ConfigResponseResult;
 import io.cdap.cdap.internal.app.worker.ConfiguratorTask;
 import io.cdap.cdap.internal.app.worker.RunnableTaskRequest;
+import io.cdap.cdap.proto.id.ArtifactId;
+import io.cdap.cdap.proto.id.NamespaceId;
 import io.cdap.common.http.HttpMethod;
 import io.cdap.common.http.HttpRequest;
 import io.cdap.common.http.HttpResponse;
@@ -43,7 +45,8 @@ import org.slf4j.LoggerFactory;
  */
 public class RemoteConfigurator implements Configurator {
   private static final Logger LOG = LoggerFactory.getLogger(RemoteConfigurator.class);
-  private static final Gson GSON = new Gson();
+  private static final Gson GSON = new GsonBuilder()
+    .registerTypeAdapter(CConfiguration.class, new CConfigurationCodec()).create();
   private final ConfiguratorConfig config;
 
   private final RemoteClient remoteClientInternal;
@@ -56,7 +59,7 @@ public class RemoteConfigurator implements Configurator {
                                                  String.format("%s", Constants.Gateway.INTERNAL_API_VERSION_3));
   }
 
-  public RemoteConfigurator(CConfiguration cConf, Id.Namespace appNamespace, Id.Artifact artifactId,
+  public RemoteConfigurator(CConfiguration cConf, NamespaceId appNamespace, ArtifactId artifactId,
                             String appClassName, PluginFinder pluginFinder, ClassLoader artifactClassLoader,
                             String applicationName, String applicationVersion, String configString,
                             DiscoveryServiceClient discoveryServiceClient,
@@ -71,7 +74,7 @@ public class RemoteConfigurator implements Configurator {
 
   @Override
   public ListenableFuture<ConfigResponse> config() {
-    SettableFuture<ConfigResponse> result = SettableFuture.create();
+
     String jsonResponse = "";
 
     try {
@@ -91,12 +94,12 @@ public class RemoteConfigurator implements Configurator {
     }
 
     ConfigResponseResult configResponse = GSON.fromJson(jsonResponse, ConfigResponseResult.class);
-    if (configResponse.getException() == null) {
-      result.set(configResponse.getConfigResponse());
-    } else {
-      return Futures.immediateFailedFuture(configResponse.getException());
+    if (configResponse.getException() != null) {
+      //TODO: Refactor to use RemoteTaskExecutor once PR #13383 is merged
+      Exception exception = new Exception(configResponse.getException().getMessage());
+      exception.setStackTrace(configResponse.getException().getStackTraces());
+      return Futures.immediateFailedFuture(exception);
     }
-
-    return result;
+    return Futures.immediateFuture(configResponse.getConfigResponse());
   }
 }

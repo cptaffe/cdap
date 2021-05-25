@@ -30,7 +30,7 @@ public final class ConfigResponseResult {
 
   public ConfigResponseResult(@Nullable ConfigResponse configResponse, @Nullable Exception exception) {
     this.configResponse = (DefaultConfigResponse) configResponse;
-    this.exception = new BasicThrowable(exception);
+    this.exception = exception == null ? null : new BasicThrowable(exception);
   }
 
   @Nullable

@@ -15,11 +15,9 @@
 package io.cdap.cdap.internal.app.deploy.pipeline;
 
 import io.cdap.cdap.common.conf.CConfiguration;
-import io.cdap.cdap.common.id.Id;
+import io.cdap.cdap.proto.id.ArtifactId;
+import io.cdap.cdap.proto.id.NamespaceId;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.net.URI;
 import javax.annotation.Nullable;
 
@@ -33,28 +31,19 @@ public class ConfiguratorConfig {
   private final String configString;
   // this is the namespace that the app will be in, which may be different than the namespace of the artifact.
   // if the artifact is a system artifact, the namespace will be the system namespace.
-  private final Id.Namespace appNamespace;
+  private final NamespaceId appNamespace;
 
   private final String appClassName;
-  private final Id.Artifact artifactId;
-  private final String cConf;
+  private final ArtifactId artifactId;
+  private final CConfiguration cConf;
   private final URI artifactLocationURI;
 
-  public ConfiguratorConfig(CConfiguration cConf, Id.Namespace appNamespace, Id.Artifact artifactId,
+  public ConfiguratorConfig(CConfiguration cConf, NamespaceId appNamespace, ArtifactId artifactId,
                             String appClassName,
                             @Nullable String applicationName, @Nullable String applicationVersion,
                             @Nullable String configString, URI artifactLocation) {
     this.artifactLocationURI = artifactLocation;
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-
-    try {
-      cConf.writeXml(output);
-
-    } catch (IOException e) {
-      e.printStackTrace();
-
-    }
-    this.cConf = new String(output.toByteArray());
+    this.cConf = cConf;
     this.appNamespace = appNamespace;
     this.artifactId = artifactId;
     this.appClassName = appClassName;
@@ -75,7 +64,7 @@ public class ConfiguratorConfig {
     return configString;
   }
 
-  public Id.Namespace getAppNamespace() {
+  public NamespaceId getAppNamespace() {
     return appNamespace;
   }
 
@@ -83,12 +72,12 @@ public class ConfiguratorConfig {
     return appClassName;
   }
 
-  public Id.Artifact getArtifactId() {
+  public ArtifactId getArtifactId() {
     return artifactId;
   }
 
   public CConfiguration getcConf() {
-    return CConfiguration.create(new ByteArrayInputStream(cConf.getBytes()));
+    return cConf;
   }
 
   public URI getArtifactLocationURI() {
