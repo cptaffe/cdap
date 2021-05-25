@@ -25,6 +25,9 @@ import io.cdap.cdap.common.conf.Constants;
 import io.cdap.cdap.logging.gateway.handlers.AbstractLogHttpHandler;
 import io.cdap.cdap.proto.BasicThrowable;
 import io.cdap.cdap.proto.codec.BasicThrowableCodec;
+import io.cdap.common.http.HttpRequest;
+import io.cdap.common.http.HttpRequests;
+import io.cdap.common.http.HttpResponse;
 import io.cdap.http.HttpHandler;
 import io.cdap.http.HttpResponder;
 import io.netty.handler.codec.http.EmptyHttpHeaders;
@@ -33,9 +36,11 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 
@@ -51,11 +56,13 @@ public class TaskWorkerHttpHandlerInternal extends AbstractLogHttpHandler {
   private final RunnableTaskLauncher runnableTaskLauncher;
   private final Consumer<String> stopper;
   private final AtomicInteger inflightRequests = new AtomicInteger(0);
+  private final String metadataServiceEndpoint;
 
   @Inject
   public TaskWorkerHttpHandlerInternal(CConfiguration cConf, Consumer<String> stopper) {
     super(cConf);
     runnableTaskLauncher = new RunnableTaskLauncher(cConf);
+    this.metadataServiceEndpoint = cConf.get(Constants.TaskWorker.METADATA_SERVICE_END_POINT);
     this.stopper = stopper;
   }
 
@@ -84,6 +91,27 @@ public class TaskWorkerHttpHandlerInternal extends AbstractLogHttpHandler {
       if (className != null) {
         stopper.accept(className);
       }
+    }
+  }
+
+  @GET
+  @Path("/token")
+  public void token(io.netty.handler.codec.http.HttpRequest request, HttpResponder responder) {
+    if (metadataServiceEndpoint == null) {
+      responder.sendString(HttpResponseStatus.NOT_IMPLEMENTED,
+                           String.format("{} has not been set", Constants.TaskWorker.METADATA_SERVICE_END_POINT),
+                           EmptyHttpHeaders.INSTANCE);
+      return;
+    }
+
+    try {
+      URL url = new URL(metadataServiceEndpoint);
+      HttpRequest tokenRequest = HttpRequest.get(url).addHeader("Metadata-Flavor", "Google").build();
+      HttpResponse tokenResponse = HttpRequests.execute(tokenRequest);
+      responder.sendByteArray(HttpResponseStatus.OK, tokenResponse.getResponseBody(), EmptyHttpHeaders.INSTANCE);
+    } catch (Exception ex) {
+      LOG.warn("failed to fetch token from metadata service", ex);
+      responder.sendString(HttpResponseStatus.INTERNAL_SERVER_ERROR, exceptionToJson(ex), EmptyHttpHeaders.INSTANCE);
     }
   }
 
