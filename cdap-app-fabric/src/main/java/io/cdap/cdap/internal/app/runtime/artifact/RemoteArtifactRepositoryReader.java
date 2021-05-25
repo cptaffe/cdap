@@ -52,7 +52,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-
 /**
  * Implementation for fetching artifact metadata from remote {@link ArtifactHttpHandlerInternal}
  */
@@ -80,8 +79,8 @@ public class RemoteArtifactRepositoryReader implements ArtifactRepositoryReader 
   /**
    * Fetches {@link ArtifactDetail} from {@link AppLifecycleHttpHandler}
    * <p>
-   * Note that {@link Location} in {@link ArtifactDescriptor} doesn't get transported over, we need to instantiate
-   * it based on the location URI in the received {@link ArtifactDetail} to construct a complete {@link ArtifactDetail}.
+   * Note that {@link Location} in {@link ArtifactDescriptor} doesn't get transported over, we need to instantiate it
+   * based on the location URI in the received {@link ArtifactDetail} to construct a complete {@link ArtifactDetail}.
    */
   @Override
   public ArtifactDetail getArtifact(Id.Artifact artifactId) throws Exception {
@@ -120,7 +119,7 @@ public class RemoteArtifactRepositoryReader implements ArtifactRepositoryReader 
     HttpURLConnection urlConn = remoteClient.openConnection(HttpMethod.GET, url);
     throwIfError(artifactId, urlConn);
     // Use FilterInputStream and override close to ensure the connection is closed once the input stream is closed
-    return new FilterInputStream(urlConn.getInputStream()){
+    return new FilterInputStream(urlConn.getInputStream()) {
       @Override
       public void close() throws IOException {
         super.close();
@@ -128,7 +127,6 @@ public class RemoteArtifactRepositoryReader implements ArtifactRepositoryReader 
       }
     };
   }
-
 
   @Override
   public List<ArtifactDetail> getArtifactDetails(ArtifactRange range, int limit, ArtifactSortOrder order)

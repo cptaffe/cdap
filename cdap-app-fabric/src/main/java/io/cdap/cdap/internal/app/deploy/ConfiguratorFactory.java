@@ -41,7 +41,7 @@ public class ConfiguratorFactory {
                             String applicationName, String applicationVersion,
                             String configString, Location artifactLocation) {
     if (isRemote) {
-      return new RemoteConfigurator(cConf, appNamespace.toEntityId(), artifactId.toArtifactId(),
+      return new RemoteConfigurator(cConf, appNamespace.toEntityId(), artifactId.toEntityId(),
                                     appClassName, pluginFinder,
                                     artifactClassLoader,
                                     applicationName, applicationVersion,

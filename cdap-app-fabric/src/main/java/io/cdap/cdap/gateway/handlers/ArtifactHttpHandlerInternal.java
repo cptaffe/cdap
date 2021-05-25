@@ -78,10 +78,10 @@ public class ArtifactHttpHandlerInternal extends AbstractHttpHandler {
   private static final Type ARTIFACT_INFO_LIST_TYPE = new TypeToken<List<ArtifactInfo>>() { }.getType();
   private static final Type ARTIFACT_DETAIL_LIST_TYPE = new TypeToken<List<ArtifactDetail>>() { }.getType();
 
+  private static final int CHUNK_SIZE = 64 * 1024;
+  
   private final ArtifactRepository artifactRepository;
   private final NamespaceQueryAdmin namespaceQueryAdmin;
-
-  private final int CHUNK_SIZE = 64 * 1024;
 
   @Inject
   ArtifactHttpHandlerInternal(ArtifactRepository artifactRepository,
