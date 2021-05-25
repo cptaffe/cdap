@@ -27,6 +27,7 @@ import io.cdap.cdap.api.plugin.PluginClass;
 import io.cdap.cdap.api.plugin.PluginSelector;
 import io.cdap.cdap.app.runtime.ProgramRunnerFactory;
 import io.cdap.cdap.common.ArtifactNotFoundException;
+import io.cdap.cdap.common.NotFoundException;
 import io.cdap.cdap.common.conf.ArtifactConfigReader;
 import io.cdap.cdap.common.conf.CConfiguration;
 import io.cdap.cdap.common.conf.Constants;
@@ -233,8 +234,8 @@ public class RemoteArtifactRepository implements ArtifactRepository {
   }
 
   @Override
-  public InputStream getArtifactBytes(Id.Artifact artifactId) throws Exception {
-    return artifactRepositoryReader.getArtifactBytes(artifactId);
+  public InputStream newInputStream(Id.Artifact artifactId) throws IOException, NotFoundException {
+    return artifactRepositoryReader.newInputStream(artifactId);
   }
 
   @Override

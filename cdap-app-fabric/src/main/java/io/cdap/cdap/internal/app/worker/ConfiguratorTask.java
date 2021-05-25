@@ -87,7 +87,7 @@ public class ConfiguratorTask implements RunnableTask {
       Location artifactLocation = Locations.getLocationFromAbsolutePath(
         locationFactory, config.getArtifactLocationURI().getPath());
       OutputStream outputStream = artifactLocation.getOutputStream();
-      InputStream artifactBytes = artifactRepository.getArtifactBytes(config.getArtifactId());
+      InputStream artifactBytes = artifactRepository.newInputStream(config.getArtifactId());
       ByteStreams.copy(artifactBytes, outputStream);
       outputStream.close();
       artifactBytes.close();

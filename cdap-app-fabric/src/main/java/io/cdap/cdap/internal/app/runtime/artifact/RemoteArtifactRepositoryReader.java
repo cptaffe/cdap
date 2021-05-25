@@ -99,7 +99,7 @@ public class RemoteArtifactRepositoryReader implements ArtifactRepositoryReader 
   }
 
   @Override
-  public InputStream getArtifactBytes(Id.Artifact artifactId) throws Exception {
+  public InputStream newInputStream(Id.Artifact artifactId) throws IOException, NotFoundException {
     HttpResponse httpResponse;
     String namespaceId = artifactId.getNamespace().getId();
     ArtifactScope scope = ArtifactScope.USER;

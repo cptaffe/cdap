@@ -42,6 +42,7 @@ import io.cdap.cdap.common.ArtifactAlreadyExistsException;
 import io.cdap.cdap.common.ArtifactNotFoundException;
 import io.cdap.cdap.common.ArtifactRangeNotFoundException;
 import io.cdap.cdap.common.InvalidArtifactException;
+import io.cdap.cdap.common.NotFoundException;
 import io.cdap.cdap.common.conf.ArtifactConfig;
 import io.cdap.cdap.common.conf.ArtifactConfigReader;
 import io.cdap.cdap.common.conf.CConfiguration;
@@ -82,7 +83,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
 /**
@@ -181,8 +181,8 @@ public class DefaultArtifactRepository implements ArtifactRepository {
   }
 
   @Override
-  public InputStream getArtifactBytes(Id.Artifact artifactId) throws Exception {
-    return artifactRepositoryReader.getArtifactBytes(artifactId);
+  public InputStream newInputStream(Id.Artifact artifactId) throws IOException, NotFoundException {
+    return artifactRepositoryReader.newInputStream(artifactId);
   }
 
   @Override

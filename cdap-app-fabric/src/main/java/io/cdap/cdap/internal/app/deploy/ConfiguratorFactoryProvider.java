@@ -35,7 +35,7 @@ public class ConfiguratorFactoryProvider implements Provider<ConfiguratorFactory
 
   @Override
   public ConfiguratorFactory get() {
-    boolean workerPoolEnabled = cConf.get(Constants.TaskWorker.ENABLED) != null;
+    boolean workerPoolEnabled = cConf.get(Constants.TaskWorker.POOL_ENABLE) != null;
     return new ConfiguratorFactory(workerPoolEnabled);
   }
 }

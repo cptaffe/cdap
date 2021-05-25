@@ -115,7 +115,7 @@ public class ArtifactHttpHandlerInternal extends AbstractHttpHandler {
 
     NamespaceId namespace = validateAndGetScopedNamespace(Ids.namespace(namespaceId), scope);
     ArtifactId artifactId = new ArtifactId(namespace.getNamespace(), artifactName, artifactVersion);
-    InputStream artifactBytes = artifactRepository.getArtifactBytes(Id.Artifact.fromEntityId(artifactId));
+    InputStream artifactBytes = artifactRepository.newInputStream(Id.Artifact.fromEntityId(artifactId));
 
     try {
       responder.sendContent(HttpResponseStatus.OK, new BodyProducer() {

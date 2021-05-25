@@ -16,6 +16,7 @@ package io.cdap.cdap.internal.app.worker;
 
 import io.cdap.cdap.app.deploy.ConfigResponse;
 import io.cdap.cdap.internal.app.deploy.DefaultConfigResponse;
+import io.cdap.cdap.proto.BasicThrowable;
 
 import javax.annotation.Nullable;
 
@@ -25,15 +26,15 @@ import javax.annotation.Nullable;
  */
 public final class ConfigResponseResult {
   private final DefaultConfigResponse configResponse;
-  private final Exception exception;
+  private final BasicThrowable exception;
 
   public ConfigResponseResult(@Nullable ConfigResponse configResponse, @Nullable Exception exception) {
     this.configResponse = (DefaultConfigResponse) configResponse;
-    this.exception = exception;
+    this.exception = new BasicThrowable(exception);
   }
 
   @Nullable
-  public Exception getException() {
+  public BasicThrowable getException() {
     return exception;
   }
 

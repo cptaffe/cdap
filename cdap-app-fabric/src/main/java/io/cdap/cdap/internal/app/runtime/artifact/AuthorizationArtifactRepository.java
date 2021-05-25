@@ -28,6 +28,7 @@ import io.cdap.cdap.api.plugin.PluginClass;
 import io.cdap.cdap.api.plugin.PluginSelector;
 import io.cdap.cdap.app.guice.AppFabricServiceRuntimeModule;
 import io.cdap.cdap.common.ArtifactNotFoundException;
+import io.cdap.cdap.common.NotFoundException;
 import io.cdap.cdap.common.id.Id;
 import io.cdap.cdap.internal.app.runtime.plugin.PluginNotExistsException;
 import io.cdap.cdap.proto.artifact.ApplicationClassInfo;
@@ -129,8 +130,8 @@ public class AuthorizationArtifactRepository implements ArtifactRepository {
   }
 
   @Override
-  public InputStream getArtifactBytes(Id.Artifact artifactId) throws Exception {
-    return delegate.getArtifactBytes(artifactId);
+  public InputStream newInputStream(Id.Artifact artifactId) throws IOException, NotFoundException {
+    return delegate.newInputStream(artifactId);
   }
 
   @Override

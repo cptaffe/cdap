@@ -18,7 +18,6 @@ package io.cdap.cdap.internal.app.worker;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.cdap.cdap.common.conf.CConfiguration;
 import io.cdap.cdap.common.conf.Constants;
@@ -53,10 +52,10 @@ public class TaskWorkerHttpHandlerInternal extends AbstractLogHttpHandler {
   private final Consumer<String> stopper;
   private final AtomicInteger inflightRequests = new AtomicInteger(0);
 
-  @Inject
+
   public TaskWorkerHttpHandlerInternal(CConfiguration cConf, Configuration hConf, Consumer<String> stopper) {
     super(cConf);
-    runnableTaskLauncher = new RunnableTaskLauncher(cConf, hConf);
+    runnableTaskLauncher = new RunnableTaskLauncher(cConf);
     this.stopper = stopper;
   }
 

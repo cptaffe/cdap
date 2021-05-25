@@ -51,7 +51,6 @@ public class RemoteConfigurator implements Configurator {
   public RemoteConfigurator(ConfiguratorConfig config,
                             DiscoveryServiceClient discoveryServiceClient) {
     this.config = config;
-
     this.remoteClientInternal = new RemoteClient(discoveryServiceClient, Constants.Service.TASK_WORKER,
                                                  new DefaultHttpRequestConfig(false),
                                                  String.format("%s", Constants.Gateway.INTERNAL_API_VERSION_3));
@@ -62,17 +61,12 @@ public class RemoteConfigurator implements Configurator {
                             String applicationName, String applicationVersion, String configString,
                             DiscoveryServiceClient discoveryServiceClient,
                             Location artifactLocation) {
-
-    this.config = new ConfiguratorConfig(
-      cConf, appNamespace,
-      artifactId, appClassName,
-      applicationName,
-      applicationVersion,
-      configString, artifactLocation.toURI());
-
-    this.remoteClientInternal = new RemoteClient(discoveryServiceClient, Constants.Service.TASK_WORKER,
-                                                 new DefaultHttpRequestConfig(false),
-                                                 String.format("%s", Constants.Gateway.INTERNAL_API_VERSION_3));
+    this(new ConfiguratorConfig(cConf, appNamespace,
+                                artifactId, appClassName,
+                                applicationName,
+                                applicationVersion,
+                                configString, artifactLocation.toURI()),
+         discoveryServiceClient);
   }
 
   @Override
@@ -93,12 +87,15 @@ public class RemoteConfigurator implements Configurator {
     } catch (Exception ex) {
       LOG.warn(String.format("Exception caught during RemoteConfigurator.config, got json response: %s", jsonResponse),
                ex);
+      return Futures.immediateFailedFuture(ex);
     }
 
     ConfigResponseResult configResponse = GSON.fromJson(jsonResponse, ConfigResponseResult.class);
     if (configResponse.getException() == null) {
       result.set(configResponse.getConfigResponse());
     } else {
+      final Exception exception = new Exception();
+      exception.
       return Futures.immediateFailedFuture(configResponse.getException());
     }
 
