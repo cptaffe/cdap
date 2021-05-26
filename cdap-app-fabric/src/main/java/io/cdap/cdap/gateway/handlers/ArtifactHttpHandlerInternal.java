@@ -60,6 +60,7 @@ import java.util.List;
 import javax.annotation.Nullable;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.QueryParam;
@@ -105,7 +106,7 @@ public class ArtifactHttpHandlerInternal extends AbstractHttpHandler {
     }
   }
 
-  @GET
+  @POST
   @Path("/namespaces/{namespace-id}/artifacts/{artifact-name}/versions/{artifact-version}/download")
   public void getArtifactBytes(HttpRequest request, HttpResponder responder,
                                @PathParam("namespace-id") String namespaceId,

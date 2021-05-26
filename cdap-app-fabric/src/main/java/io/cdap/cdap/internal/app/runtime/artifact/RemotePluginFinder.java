@@ -56,11 +56,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
@@ -245,10 +244,12 @@ public class RemotePluginFinder implements PluginFinder, ArtifactFinder {
                                scope);
 
     LOG.debug("Fetching artifact from " + url);
-    HttpURLConnection connection = remoteClientInternal.openConnection(url);
+    HttpURLConnection connection = remoteClientInternal.openConnection(HttpMethod.POST, url);
     try {
       try (InputStream is = connection.getInputStream()) {
-        Files.copy(is, Paths.get(location.toURI()));
+        try (OutputStream os = location.getOutputStream()) {
+          ByteStreams.copy(is, os);
+        }
         throwIfError(artifactId, connection);
         LOG.debug("Stored artifact into " + location.toURI().toString());
       } catch (BadRequestException e) {

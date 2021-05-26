@@ -14,7 +14,6 @@
 
 package io.cdap.cdap.internal.app.deploy;
 
-import com.google.inject.Inject;
 import io.cdap.cdap.app.deploy.Configurator;
 import io.cdap.cdap.common.conf.CConfiguration;
 import io.cdap.cdap.common.id.Id;
@@ -28,11 +27,16 @@ import org.apache.twill.filesystem.Location;
 public class ConfiguratorFactory {
 
   private final boolean isRemote;
-  @Inject
   private DiscoveryServiceClient discoveryServiceClient;
+
+  public ConfiguratorFactory(boolean isRemote, DiscoveryServiceClient discoveryServiceClient) {
+    this.isRemote = isRemote;
+    this.discoveryServiceClient = discoveryServiceClient;
+  }
 
   public ConfiguratorFactory(boolean isRemote) {
     this.isRemote = isRemote;
+    this.discoveryServiceClient = null;
   }
 
   public Configurator build(CConfiguration cConf, Id.Namespace appNamespace, Id.Artifact artifactId,

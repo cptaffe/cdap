@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import com.google.inject.Provider;
 import io.cdap.cdap.common.conf.CConfiguration;
 import io.cdap.cdap.common.conf.Constants;
+import org.apache.twill.discovery.DiscoveryServiceClient;
 
 /**
  * Provider for {@link ConfiguratorFactory}.
@@ -27,15 +28,17 @@ import io.cdap.cdap.common.conf.Constants;
 public class ConfiguratorFactoryProvider implements Provider<ConfiguratorFactory> {
 
   private final CConfiguration cConf;
+  private final DiscoveryServiceClient discoveryServiceClient;
 
   @Inject
-  ConfiguratorFactoryProvider(CConfiguration cConf) {
+  ConfiguratorFactoryProvider(CConfiguration cConf, DiscoveryServiceClient discoveryServiceClient) {
     this.cConf = cConf;
+    this.discoveryServiceClient = discoveryServiceClient;
   }
 
   @Override
   public ConfiguratorFactory get() {
     boolean workerPoolEnabled = cConf.get(Constants.TaskWorker.POOL_ENABLE) != null;
-    return new ConfiguratorFactory(workerPoolEnabled);
+    return new ConfiguratorFactory(workerPoolEnabled, discoveryServiceClient);
   }
 }

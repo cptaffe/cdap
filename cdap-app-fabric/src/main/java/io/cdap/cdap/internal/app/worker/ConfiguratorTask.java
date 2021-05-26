@@ -14,6 +14,7 @@
 
 package io.cdap.cdap.internal.app.worker;
 
+import com.google.common.io.ByteStreams;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -40,9 +41,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -94,9 +94,10 @@ public class ConfiguratorTask implements RunnableTask {
       Location artifactLocation = Locations.getLocationFromAbsolutePath(
         locationFactory, config.getArtifactLocationURI().getPath());
 
-
       try (InputStream is = artifactRepository.newInputStream(Id.Artifact.fromEntityId(config.getArtifactId()))) {
-        Files.copy(is, Paths.get(artifactLocation.toURI()));
+        try (OutputStream os = artifactLocation.getOutputStream()) {
+          ByteStreams.copy(is, os);
+        }
       }
 
       LOG.info(String.format("Successfully fetched artifact '%s'.", config.getArtifactId().getArtifact()));

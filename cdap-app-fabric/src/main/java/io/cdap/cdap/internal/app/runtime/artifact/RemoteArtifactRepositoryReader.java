@@ -116,8 +116,10 @@ public class RemoteArtifactRepositoryReader implements ArtifactRepositoryReader 
                                artifactId.getVersion(),
                                scope);
 
-    HttpURLConnection urlConn = remoteClient.openConnection(HttpMethod.GET, url);
+    HttpURLConnection urlConn = remoteClient.openConnection(HttpMethod.POST, url);
+    urlConn.setChunkedStreamingMode(64 * 1024);
     throwIfError(artifactId, urlConn);
+
     // Use FilterInputStream and override close to ensure the connection is closed once the input stream is closed
     return new FilterInputStream(urlConn.getInputStream()) {
       @Override
