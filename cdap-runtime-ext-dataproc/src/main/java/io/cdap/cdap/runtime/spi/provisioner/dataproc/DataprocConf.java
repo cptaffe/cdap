@@ -66,6 +66,10 @@ final class DataprocConf {
   static final Pattern CLUSTER_PROPERTIES_PATTERN = Pattern.compile("^[a-zA-Z0-9\\-]+:");
   static final int MAX_NETWORK_TAGS = 64;
 
+  static final String SECURE_BOOT_ENABLED = "secureBootEnabled";
+  static final String VTPM_ENABLED = "vTpmEnabled";
+  static final String INTEGRITY_MONITORING_ENABLED = "integrityMonitoringEnabled";
+
   private final String accountKey;
   private final String region;
   private final String zone;
@@ -114,6 +118,10 @@ final class DataprocConf {
   private final String autoScalingPolicy;
   private final int idleTTLMinutes;
 
+  private final boolean secureBootEnabled;
+  private final boolean vTpmEnabled;
+  private final boolean integrityMonitoringEnabled;
+
   private final boolean runtimeJobManagerEnabled;
 
   DataprocConf(DataprocConf conf, String network, String subnet) {
@@ -126,7 +134,8 @@ final class DataprocConf {
          conf.preferExternalIP, conf.stackdriverLoggingEnabled, conf.stackdriverMonitoringEnabled,
          conf.componentGatewayEnabled, conf.skipDelete, conf.publicKey, conf.imageVersion, conf.customImageUri,
          conf.clusterMetaData, conf.networkTags, conf.initActions, conf.runtimeJobManagerEnabled,
-         conf.clusterProperties, conf.autoScalingPolicy, conf.idleTTLMinutes);
+         conf.clusterProperties, conf.autoScalingPolicy, conf.idleTTLMinutes,
+         conf.secureBootEnabled, conf.vTpmEnabled, conf.integrityMonitoringEnabled);
   }
 
   private DataprocConf(@Nullable String accountKey, String region, String zone, String projectId,
@@ -143,8 +152,8 @@ final class DataprocConf {
                        @Nullable String customImageUri,
                        @Nullable Map<String, String> clusterMetaData, List<String> networkTags,
                        @Nullable String initActions, boolean runtimeJobManagerEnabled,
-                       Map<String, String> clusterProperties, @Nullable String autoScalingPolicy,
-                       int idleTTLMinutes) {
+                       Map<String, String> clusterProperties, @Nullable String autoScalingPolicy, int idleTTLMinutes,
+                       boolean secureBootEnabled, boolean vTpmEnabled, boolean integrityMonitoringEnabled) {
     this.accountKey = accountKey;
     this.region = region;
     this.zone = zone;
@@ -187,6 +196,9 @@ final class DataprocConf {
     this.clusterProperties = clusterProperties;
     this.autoScalingPolicy = autoScalingPolicy;
     this.idleTTLMinutes = idleTTLMinutes;
+    this.secureBootEnabled = secureBootEnabled;
+    this.vTpmEnabled = vTpmEnabled;
+    this.integrityMonitoringEnabled = integrityMonitoringEnabled;
   }
 
   String getRegion() {
@@ -353,6 +365,18 @@ final class DataprocConf {
 
   public int getIdleTTLMinutes() {
     return idleTTLMinutes;
+  }
+
+  public boolean isSecureBootEnabled() {
+    return secureBootEnabled;
+  }
+
+  public boolean isvTpmEnabled() {
+    return vTpmEnabled;
+  }
+
+  public boolean isIntegrityMonitoringEnabled() {
+    return integrityMonitoringEnabled;
   }
 
   /**
@@ -544,6 +568,11 @@ final class DataprocConf {
     String autoScalingPolicy = getString(properties, "autoScalingPolicy");
     int idleTTL = getInt(properties, "idleTTL", 0);
 
+    boolean secureBootEnabled = Boolean.parseBoolean(properties.getOrDefault(SECURE_BOOT_ENABLED, "false"));
+    boolean vTpmEnabled = Boolean.parseBoolean(properties.getOrDefault(VTPM_ENABLED, "false"));
+    boolean integrityMonitoringEnabled = Boolean.parseBoolean(
+      properties.getOrDefault(INTEGRITY_MONITORING_ENABLED, "false"));
+
     return new DataprocConf(accountKey, region, zone, projectId, networkHostProjectID, network, subnet,
                             masterNumNodes, masterCPUs, masterMemoryGB, masterDiskGB,
                             masterDiskType, masterMachineType,
@@ -554,7 +583,8 @@ final class DataprocConf {
                             stackdriverLoggingEnabled, stackdriverMonitoringEnabled,
                             componentGatewayEnabled, skipDelete,
                             publicKey, imageVersion, customImageUri, clusterMetaData, networkTags, initActions,
-                            runtimeJobManagerEnabled, clusterProps, autoScalingPolicy, idleTTL);
+                            runtimeJobManagerEnabled, clusterProps, autoScalingPolicy, idleTTL,
+                            secureBootEnabled, vTpmEnabled, integrityMonitoringEnabled);
   }
 
   // the UI never sends nulls, it only sends empty strings.
