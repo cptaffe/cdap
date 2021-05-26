@@ -146,7 +146,7 @@ public final class AppFabricServiceRuntimeModule extends RuntimeModule {
 
   @Override
   public Module getInMemoryModules() {
-    return Modules.combine(new AppFabricServiceModule(false),
+    return Modules.combine(new AppFabricServiceModule(),
                            new CapabilityModule(),
                            new NamespaceAdminModule().getInMemoryModules(),
                            new ConfigStoreModule(),
@@ -186,7 +186,7 @@ public final class AppFabricServiceRuntimeModule extends RuntimeModule {
   @Override
   public Module getStandaloneModules() {
 
-    return Modules.combine(new AppFabricServiceModule(false),
+    return Modules.combine(new AppFabricServiceModule(),
                            new CapabilityModule(),
                            new NamespaceAdminModule().getStandaloneModules(),
                            new ConfigStoreModule(),
@@ -239,7 +239,7 @@ public final class AppFabricServiceRuntimeModule extends RuntimeModule {
   @Override
   public Module getDistributedModules() {
 
-    return Modules.combine(new AppFabricServiceModule(true, ImpersonationHandler.class),
+    return Modules.combine(new AppFabricServiceModule(ImpersonationHandler.class),
                            new CapabilityModule(),
                            new NamespaceAdminModule().getDistributedModules(),
                            new ConfigStoreModule(),
@@ -279,11 +279,9 @@ public final class AppFabricServiceRuntimeModule extends RuntimeModule {
    */
   private static final class AppFabricServiceModule extends AbstractModule {
 
-    private final boolean isRemote;
     private final List<Class<? extends HttpHandler>> handlerClasses;
 
-    private AppFabricServiceModule(boolean isRemote, Class<? extends HttpHandler>... handlerClasses) {
-      this.isRemote = isRemote;
+    private AppFabricServiceModule(Class<? extends HttpHandler>... handlerClasses) {
       this.handlerClasses = ImmutableList.copyOf(handlerClasses);
     }
 
