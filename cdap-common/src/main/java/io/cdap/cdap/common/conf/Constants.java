@@ -1211,6 +1211,20 @@ public final class Constants {
       public static final String SSL_TRUSTSTORE_PASSWORD = "security.auth.server.ssl.truststore.password";
     }
 
+    /**
+     * Configurations for setting Twill-related identity.
+     */
+    public static final class TwillIdentity {
+      /**
+       * User identity for Twill runnables which execute user code.
+       */
+      public static final String IDENTITY_USER = "security.twill.identity.user";
+      /**
+       * System identity for Twill runnables which do not execute user code.
+       */
+      public static final String IDENTITY_SYSTEM = "security.twill.identity.system";
+    }
+
     /** Path to the Kerberos keytab file used by CDAP master */
     public static final String CFG_CDAP_MASTER_KRB_KEYTAB_PATH = "cdap.master.kerberos.keytab";
     /** Kerberos principal used by CDAP master */

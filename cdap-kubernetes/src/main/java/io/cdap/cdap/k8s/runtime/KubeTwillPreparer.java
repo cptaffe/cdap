@@ -1,5 +1,5 @@
 /*
- * Copyright © 2019 Cask Data, Inc.
+ * Copyright © 2019-2021 Cask Data, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -24,6 +24,7 @@ import com.google.gson.reflect.TypeToken;
 import io.cdap.cdap.master.environment.k8s.PodInfo;
 import io.cdap.cdap.master.spi.environment.MasterEnvironmentContext;
 import io.cdap.cdap.master.spi.environment.MasterEnvironmentRunnable;
+import io.cdap.cdap.master.spi.twill.IdentityTwillPreparer;
 import io.cdap.cdap.master.spi.twill.StatefulDisk;
 import io.cdap.cdap.master.spi.twill.StatefulTwillPreparer;
 import io.kubernetes.client.ApiClient;
@@ -115,7 +116,7 @@ import java.util.stream.Collectors;
  * Most of these operations are no-ops as many of these methods and pretty closely coupled to the Hadoop implementation
  * and have no analogy in Kubernetes.
  */
-class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer {
+class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer, IdentityTwillPreparer {
 
   private static final Logger LOG = LoggerFactory.getLogger(KubeTwillPreparer.class);
 
@@ -140,6 +141,7 @@ class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer {
   private final String resourcePrefix;
   private final Map<String, String> extraLabels;
   private String schedulerQueue;
+  private final Map<String, String> runnableServiceAccounts;
 
   KubeTwillPreparer(MasterEnvironmentContext masterEnvContext, ApiClient apiClient, String kubeNamespace,
                     PodInfo podInfo, TwillSpecification spec, RunId twillRunId, Location appLocation,
@@ -165,6 +167,7 @@ class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer {
     this.twillSpec = spec;
     this.resourcePrefix = resourcePrefix;
     this.extraLabels = extraLabels;
+    this.runnableServiceAccounts = new HashMap<>();
   }
 
   @Override
@@ -181,6 +184,16 @@ class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer {
       throw new IllegalArgumentException("Each stateful disk must have unique mount path");
     }
     statefulRunnables.put(runnableName, new StatefulRunnable(orderedStart, Arrays.asList(disks)));
+    return this;
+  }
+
+  @Override
+  public IdentityTwillPreparer withIdentity(String runnableName, String identity) {
+    if (!twillSpec.getRunnables().containsKey(runnableName)) {
+      throw new IllegalArgumentException("Runnable " + runnableName + " not found");
+    }
+    // In Kubernetes, the identity represents the service account used to run the pod.
+    runnableServiceAccounts.put(runnableName, identity);
     return this;
   }
 
@@ -683,6 +696,7 @@ class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer {
   private V1PodSpec createPodSpec(Location runtimeConfigLocation,
                                   RuntimeSpecification runtimeSpec, V1VolumeMount... extraMounts) {
     String runnableName = runtimeSpec.getName();
+    TwillRunnableSpecification runnableSpec = runtimeSpec.getRunnableSpecification();
     String workDir = "/workDir-" + twillRunId.getId();
 
     V1Volume podInfoVolume = createPodInfoVolume(podInfo);
@@ -706,8 +720,9 @@ class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer {
     if (schedulerQueue != null) {
       podSpecBuilder = podSpecBuilder.withPriorityClassName(schedulerQueue);
     }
+    String serviceAccountName = runnableServiceAccounts.getOrDefault(runnableName, podInfo.getServiceAccountName());
     return podSpecBuilder
-      .withServiceAccountName(podInfo.getServiceAccountName())
+      .withServiceAccountName(serviceAccountName)
       .withRuntimeClassName(podInfo.getRuntimeClassName())
       .addAllToVolumes(podInfo.getVolumes())
       .addToVolumes(podInfoVolume,

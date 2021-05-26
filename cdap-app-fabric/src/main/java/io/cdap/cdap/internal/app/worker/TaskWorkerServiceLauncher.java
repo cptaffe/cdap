@@ -21,6 +21,7 @@ import com.google.inject.Inject;
 import io.cdap.cdap.common.conf.CConfiguration;
 import io.cdap.cdap.common.conf.Constants;
 import io.cdap.cdap.common.utils.DirUtils;
+import io.cdap.cdap.master.spi.twill.IdentityTwillPreparer;
 import io.cdap.cdap.master.spi.twill.StatefulDisk;
 import io.cdap.cdap.master.spi.twill.StatefulTwillPreparer;
 import org.apache.hadoop.conf.Configuration;
@@ -152,6 +153,14 @@ public class TaskWorkerServiceLauncher extends AbstractScheduledService {
             twillPreparer = ((StatefulTwillPreparer) twillPreparer)
               .withStatefulRunnable(TaskWorkerTwillRunnable.class.getSimpleName(), false,
                                     new StatefulDisk("task-worker-data", diskSize, "/data"));
+          }
+
+          if (twillPreparer instanceof IdentityTwillPreparer) {
+            String twillUserIdentity = cConf.get(Constants.Security.TwillIdentity.IDENTITY_USER);
+            if (twillUserIdentity != null) {
+              twillPreparer = ((IdentityTwillPreparer) twillPreparer)
+                .withIdentity(TaskWorkerTwillRunnable.class.getSimpleName(), twillUserIdentity);
+            }
           }
 
           activeController = twillPreparer.start(5, TimeUnit.MINUTES);
