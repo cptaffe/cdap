@@ -28,9 +28,9 @@ public class RunnableTaskRequest {
   @Nullable
   private final String param;
   @Nullable
-  private ArtifactId artifactId;
+  private final ArtifactId artifactId;
   @Nullable
-  private String namespace;
+  private final String namespace;
 
   private RunnableTaskRequest(String className, String param,
                               @Nullable ArtifactId artifactId, @Nullable String namespace) {

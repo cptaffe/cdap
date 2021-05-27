@@ -26,12 +26,11 @@ import javax.annotation.Nullable;
  */
 public class RunnableTaskContext {
   private final ByteArrayOutputStream outputStream;
-  @Nullable
   private final String param;
   @Nullable
   private final ClassLoader artifactClassLoader;
 
-  private RunnableTaskContext(@Nullable String param, @Nullable ClassLoader artifactClassLoader) {
+  private RunnableTaskContext(String param, @Nullable ClassLoader artifactClassLoader) {
     this.param = param;
     this.artifactClassLoader = artifactClassLoader;
     this.outputStream = new ByteArrayOutputStream();
@@ -45,7 +44,6 @@ public class RunnableTaskContext {
     return outputStream.toByteArray();
   }
 
-  @Nullable
   public String getParam() {
     return param;
   }
@@ -63,7 +61,6 @@ public class RunnableTaskContext {
    * Builder for RunnableTaskContext
    */
   public static class Builder {
-    @Nullable
     private String param;
     @Nullable
     private ClassLoader artifactClassLoader;
@@ -72,7 +69,7 @@ public class RunnableTaskContext {
 
     }
 
-    public Builder withParam(@Nullable String param) {
+    public Builder withParam(String param) {
       this.param = param;
       return this;
     }

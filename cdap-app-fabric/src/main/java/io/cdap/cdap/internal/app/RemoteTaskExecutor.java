@@ -33,8 +33,6 @@ import io.cdap.common.http.HttpRequest;
 import io.cdap.common.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.twill.discovery.DiscoveryServiceClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.net.NoRouteToHostException;
 import javax.annotation.Nullable;
@@ -46,7 +44,6 @@ public class RemoteTaskExecutor {
 
   private static final Gson GSON = new Gson();
   private static final String TASK_WORKER_URL = "/worker/run";
-  private static final Logger LOG = LoggerFactory.getLogger(RemoteTaskExecutor.class);
   private final RemoteClient remoteClient;
   private final RetryStrategy retryStrategy;
 
