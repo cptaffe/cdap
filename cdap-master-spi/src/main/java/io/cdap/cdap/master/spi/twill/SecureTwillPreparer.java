@@ -21,9 +21,9 @@ import org.apache.twill.api.TwillRunnable;
 
 /**
  * Extension interface for {@link TwillPreparer} to implement if it supports execution of a {@link TwillRunnable}
- * under a specific identity.
+ * under secure contexts.
  */
-public interface IdentityTwillPreparer extends TwillPreparer {
+public interface SecureTwillPreparer extends TwillPreparer {
   /**
    * Runs the given runnable as a certain identity.
    *
@@ -31,5 +31,13 @@ public interface IdentityTwillPreparer extends TwillPreparer {
    * @param identity the identity name to run as
    * @return this {@link TwillPreparer}
    */
-  IdentityTwillPreparer withIdentity(String runnableName, String identity);
+  SecureTwillPreparer withIdentity(String runnableName, String identity);
+
+  /**
+   * Runs the given runnable with an externally-provided secret.
+   *
+   * @param secretName the external secret identifier to attach to the runnables
+   * @return this {@link TwillPreparer}
+   */
+  SecureTwillPreparer withExternalSecret(String... secretName);
 }

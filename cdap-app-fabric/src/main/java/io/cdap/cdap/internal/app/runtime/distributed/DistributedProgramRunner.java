@@ -54,6 +54,7 @@ import io.cdap.cdap.internal.app.runtime.SystemArguments;
 import io.cdap.cdap.internal.app.runtime.codec.ArgumentsCodec;
 import io.cdap.cdap.internal.app.runtime.codec.ProgramOptionsCodec;
 import io.cdap.cdap.logging.context.LoggingContextHelper;
+import io.cdap.cdap.master.spi.twill.SecureTwillPreparer;
 import io.cdap.cdap.proto.id.ProgramRunId;
 import io.cdap.cdap.security.impersonation.Impersonator;
 import io.cdap.cdap.security.store.SecureStoreUtils;
@@ -272,6 +273,11 @@ public abstract class DistributedProgramRunner implements ProgramRunner, Program
         if (schedulerQueueName != null && !schedulerQueueName.isEmpty()) {
           LOG.info("Setting scheduler queue for app {} as {}", program.getId(), schedulerQueueName);
           twillPreparer.setSchedulerQueue(schedulerQueueName);
+        }
+
+        // Add secrets if using secrets
+        if (twillPreparer instanceof SecureTwillPreparer) {
+          twillPreparer = ((SecureTwillPreparer) twillPreparer).withExternalSecret("cdap-security");
         }
 
         // Set JVM options based on configuration

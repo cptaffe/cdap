@@ -24,7 +24,7 @@ import com.google.gson.reflect.TypeToken;
 import io.cdap.cdap.master.environment.k8s.PodInfo;
 import io.cdap.cdap.master.spi.environment.MasterEnvironmentContext;
 import io.cdap.cdap.master.spi.environment.MasterEnvironmentRunnable;
-import io.cdap.cdap.master.spi.twill.IdentityTwillPreparer;
+import io.cdap.cdap.master.spi.twill.SecureTwillPreparer;
 import io.cdap.cdap.master.spi.twill.StatefulDisk;
 import io.cdap.cdap.master.spi.twill.StatefulTwillPreparer;
 import io.kubernetes.client.ApiClient;
@@ -49,6 +49,7 @@ import io.kubernetes.client.models.V1PodSpec;
 import io.kubernetes.client.models.V1PodSpecBuilder;
 import io.kubernetes.client.models.V1ResourceRequirements;
 import io.kubernetes.client.models.V1ResourceRequirementsBuilder;
+import io.kubernetes.client.models.V1SecretVolumeSource;
 import io.kubernetes.client.models.V1StatefulSet;
 import io.kubernetes.client.models.V1StatefulSetBuilder;
 import io.kubernetes.client.models.V1Volume;
@@ -116,7 +117,7 @@ import java.util.stream.Collectors;
  * Most of these operations are no-ops as many of these methods and pretty closely coupled to the Hadoop implementation
  * and have no analogy in Kubernetes.
  */
-class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer, IdentityTwillPreparer {
+class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer, SecureTwillPreparer {
 
   private static final Logger LOG = LoggerFactory.getLogger(KubeTwillPreparer.class);
 
@@ -142,6 +143,7 @@ class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer, Identit
   private final Map<String, String> extraLabels;
   private String schedulerQueue;
   private final Map<String, String> runnableServiceAccounts;
+  private final List<String> externalSecrets;
 
   KubeTwillPreparer(MasterEnvironmentContext masterEnvContext, ApiClient apiClient, String kubeNamespace,
                     PodInfo podInfo, TwillSpecification spec, RunId twillRunId, Location appLocation,
@@ -168,6 +170,7 @@ class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer, Identit
     this.resourcePrefix = resourcePrefix;
     this.extraLabels = extraLabels;
     this.runnableServiceAccounts = new HashMap<>();
+    this.externalSecrets = new ArrayList<>();
   }
 
   @Override
@@ -188,12 +191,18 @@ class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer, Identit
   }
 
   @Override
-  public IdentityTwillPreparer withIdentity(String runnableName, String identity) {
+  public SecureTwillPreparer withIdentity(String runnableName, String identity) {
     if (!twillSpec.getRunnables().containsKey(runnableName)) {
       throw new IllegalArgumentException("Runnable " + runnableName + " not found");
     }
     // In Kubernetes, the identity represents the service account used to run the pod.
     runnableServiceAccounts.put(runnableName, identity);
+    return this;
+  }
+
+  @Override
+  public SecureTwillPreparer withExternalSecret(String... secretName) {
+    externalSecrets.addAll(Arrays.asList(secretName));
     return this;
   }
 
@@ -696,7 +705,6 @@ class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer, Identit
   private V1PodSpec createPodSpec(Location runtimeConfigLocation,
                                   RuntimeSpecification runtimeSpec, V1VolumeMount... extraMounts) {
     String runnableName = runtimeSpec.getName();
-    TwillRunnableSpecification runnableSpec = runtimeSpec.getRunnableSpecification();
     String workDir = "/workDir-" + twillRunId.getId();
 
     V1Volume podInfoVolume = createPodInfoVolume(podInfo);
@@ -709,6 +717,14 @@ class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer, Identit
     // Add the working directory the file localization by the init container
     volumeMounts.add(new V1VolumeMount().name("workdir").mountPath(workDir));
     volumeMounts.addAll(Arrays.asList(extraMounts));
+
+    // Add external secrets as secret volume mounts
+    List<V1Volume> secretVolumes = new ArrayList<>();
+    for (String secret : externalSecrets) {
+      String mountPath = "/etc/cdap/" + secret;
+      secretVolumes.add(new V1Volume().name(secret).secret(new V1SecretVolumeSource().secretName(secret)));
+      volumeMounts.add(new V1VolumeMount().name(secret).mountPath(mountPath).readOnly(true));
+    }
 
     // Setup the container environment. Inherit everything from the current pod.
     Map<String, String> environs = podInfo.getContainerEnvironments().stream()
@@ -725,6 +741,7 @@ class KubeTwillPreparer implements TwillPreparer, StatefulTwillPreparer, Identit
       .withServiceAccountName(serviceAccountName)
       .withRuntimeClassName(podInfo.getRuntimeClassName())
       .addAllToVolumes(podInfo.getVolumes())
+      .addAllToVolumes(secretVolumes)
       .addToVolumes(podInfoVolume,
                     new V1Volume().name("workdir").emptyDir(new V1EmptyDirVolumeSource()))
       .withInitContainers(createContainer("file-localizer", podInfo.getContainerImage(), workDir,

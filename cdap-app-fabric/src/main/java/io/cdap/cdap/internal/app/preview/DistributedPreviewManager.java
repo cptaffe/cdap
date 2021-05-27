@@ -30,7 +30,7 @@ import io.cdap.cdap.common.utils.DirUtils;
 import io.cdap.cdap.data.runtime.DataSetsModules;
 import io.cdap.cdap.data2.dataset2.DatasetFramework;
 import io.cdap.cdap.data2.dataset2.lib.table.leveldb.LevelDBTableService;
-import io.cdap.cdap.master.spi.twill.IdentityTwillPreparer;
+import io.cdap.cdap.master.spi.twill.SecureTwillPreparer;
 import io.cdap.cdap.master.spi.twill.StatefulDisk;
 import io.cdap.cdap.master.spi.twill.StatefulTwillPreparer;
 import io.cdap.cdap.messaging.MessagingService;
@@ -173,10 +173,10 @@ public class DistributedPreviewManager extends DefaultPreviewManager implements 
                                     new StatefulDisk("preview-runner-data", diskSize, "/data"));
           }
 
-          if (twillPreparer instanceof IdentityTwillPreparer) {
+          if (twillPreparer instanceof SecureTwillPreparer) {
             String twillUserIdentity = cConf.get(Constants.Security.TwillIdentity.IDENTITY_USER);
             if (twillUserIdentity != null) {
-              twillPreparer = ((IdentityTwillPreparer) twillPreparer)
+              twillPreparer = ((SecureTwillPreparer) twillPreparer)
                 .withIdentity(PreviewRunnerTwillRunnable.class.getSimpleName(), twillUserIdentity);
             }
           }
